@@ -1,126 +1,175 @@
+// API atualizada para o jogo "7 Erros" com apenas 3 blocos (HTML, CSS, JS), exibindo um aleatório por vez.
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 
 const app = express();
 const PORT = 3000;
 
-app.use(cors({origin: '*' })); // Permitir requisições do frontend
+app.use(cors({ origin: '*' }));
 app.use(express.json());
-app.use(express.static('.')); // Servir arquivos estáticos
+app.use(express.static('.'));
 
 const codeBlocks = [
-    {
-        correct: [
-            "let x = 5;",
-            "if (x > 3) {",
-            "  console.log('x é maior que 3');",
-            "}"
-        ]
-    },
-    {
-        correct: [
-            "function soma(a: number, b: number) {",
-            "  return a + b;",
-            "}"
-        ]
-    },
-    {
-        correct: [
-            "const numeros = [1, 2, 3];",
-            "for (let i = 0; i < numeros.length; i++) {",
-            "  console.log(numeros[i]);",
-            "}"
-        ]
-    },
-    {
-        correct: [
-            "let nome = 'João';",
-            "console.log('Olá, ' + nome);"
-        ]
-    },
-    {
-        correct: [
-            "const obj = { nome: 'Maria', idade: 30 };",
-            "console.log(obj.nome);"
-        ]
-    },
+  {
+    language: 'html',
+    correct: [
+      '<!DOCTYPE html>',
+      '<html>',
+      '<head>',
+      '  <title>Página Exemplo</title>',
+      '</head>',
+      '<body>',
+      '  <h1>Bem vindo ao site</h1>',
+      '  <img src="imagem.jpg" alt="Imagem">',
+      '  <p>Este é um parágrafo</p>',
+      '  <ul>',
+      '    <li>Item 1</li>',
+      '    <li>Item 2</li>',
+      '  </ul>',
+      '  <div class="conteudo">',
+      '    <div>Outro conteúdo</div>',
+      '  </div>',
+      '</body>',
+      '</html>'
+    ]
+  },
+  {
+    language: 'css',
+    correct: [
+      'body {',
+      '  background-color: #f0f0f0;',
+      '  font-family: Arial, sans-serif;',
+      '  color: #333;',
+      '}',
+      '',
+      '.container {',
+      '  width: 80%;',
+      '  margin: auto;',
+      '  padding: 20px;',
+      '  background-color: #fff;',
+      '  border: 1px solid #000;',
+      '}'
+    ]
+  },
+  {
+    language: 'javascript',
+    correct: [
+      'const nome = "Maria";',
+      '',
+      'if (nome === "Maria") {',
+      '  console.log("Olá, Maria!");',
+      '}',
+      '',
+      'function soma(a, b) {',
+      '  return a + b;',
+      '}',
+      '',
+      'let resultado = soma(2, 3);',
+      'console.log("Resultado:", resultado);',
+      '',
+      'const idade = 25;'
+    ]
+  }
 ];
 
-// ✅ Tipagem explícita no parâmetro `linha`
-function inserirErros(linhas: string[]): string[] {
-    return linhas.map((linha: string) => {
-        if (Math.random() < 0.5) {
-            return linha.replace(";", "") + " // erro";
-        }
-        if (linha.includes("function")) {
-            return linha.replace("function", "fuction"); // erro proposital
-        }
-        return linha;
-    });
+function inserirErros(linhas: string[], linguagem: string): string[] {
+  let linhasComErro = [...linhas];
+
+  if (linguagem === 'html') {
+    linhasComErro = [
+      '<!DOCTYPE html>',
+      '<html>',
+      '<head>',
+      '  <title>Página Exemplo<title>',
+      '</head>',
+      '<body>',
+      '  <h1>Bem vindo ao site<h1>',
+      '  <img src="imagem.jpg">',
+      '  <p>Este é um parágrafo',
+      '  <ul>',
+      '    <li>Item 1',
+      '    <li>Item 2</li>',
+      '  </ul>',
+      '  <div class="conteudo>',
+      '  <div>Outro conteúdo</div',
+      '</body>',
+      '</html>'
+    ];
+  }
+
+  if (linguagem === 'css') {
+    linhasComErro = [
+      'body {',
+      '  background-color #f0f0f0;',
+      '  font-family Arial, sans-serif',
+      '  color: #333;',
+      '}',
+      '',
+      '.container {',
+      '  widht: 80%;',
+      '  margin auto;',
+      '  padding 20px',
+      '  background-color: #fff;',
+      '  border 1px solid #000',
+      '}'
+    ];
+  }
+
+  if (linguagem === 'javascript') {
+    linhasComErro = [
+      'const nome = "Maria"',
+      '',
+      'if nome === "Maria" {',
+      '  console.log("Olá, Maria!")',
+      '}',
+      '',
+      'function soma(a, b) {',
+      '  return a + b',
+      '}',
+      '',
+      'let resultado = soma(2 3)',
+      'console.log("Resultado:" resultado);',
+      '',
+      'const idade;'
+    ];
+  }
+
+  return linhasComErro;
 }
 
 app.get('/api/codes', (req: Request, res: Response) => {
-    const shuffled = codeBlocks.sort(() => 0.5 - Math.random()).slice(0, 3);
-    const withErrors = shuffled.map(block => ({
-        original: inserirErros(block.correct),
-        correct: block.correct
-    }));
-    app.locals.currentGame = withErrors;
-    res.json(withErrors.map(b => b.original));
+  const selected = codeBlocks[Math.floor(Math.random() * codeBlocks.length)];
+  const withErrors = inserirErros(selected.correct, selected.language);
+  app.locals.currentGame = { original: withErrors, correct: selected.correct };
+  res.json(withErrors);
 });
 
-app.post('/api/correct', (req: express.Request, res: express.Response) => {
-    const { userAnswers } = req.body as { userAnswers: string[][] };
-    const correctBlocks = app.locals.currentGame || [];
+app.post('/api/correct', (req: Request, res: Response) => {
+  const { userAnswers } = req.body as { userAnswers: string[] };
+  const correctBlock = app.locals.currentGame;
 
-    let score = 7;
-    let feedback: any[] = [];
+  if (!correctBlock || !Array.isArray(userAnswers)) {
+     res.status(400).json({ error: 'Jogo não iniciado ou respostas inválidas.' });
+  }
 
-    if (!Array.isArray(userAnswers)) {
-        res.status(400).json({ error: 'Formato inválido de respostas' });
-    } else if (!correctBlocks.length) {
-        res.status(400).json({ error: 'Jogo não iniciado. Acesse /api/codes primeiro.' });
+  let score = 7;
+  const feedback: any[] = [];
+
+  correctBlock.correct.forEach((line: string, i: number) => {
+    const userLine = userAnswers[i]?.trim() || "";
+    const correctLine = line.trim();
+    if (userLine === correctLine) {
+      feedback.push({ line: userLine, status: 'acertou' });
     } else {
-        userAnswers.forEach((userLines: string[], index: number) => {
-            if (!correctBlocks[index] || !Array.isArray(correctBlocks[index].correct)) {
-                feedback.push({ error: 'Índice fora do limite ou dados incompletos', index });
-            } else {
-                const correctLines = correctBlocks[index].correct;
-                const userCode = userLines.map(line => line.trim());
-                const correctCode = correctLines.map((line: string) => line.trim());
-                let blockFeedback: any[] = [];
-
-                correctCode.forEach((line: string, i: number) => {
-                    if (i >= userCode.length) {
-                        blockFeedback.push({
-                            line,
-                            status: 'errou',
-                            certo: line,
-                            error: 'Resposta não fornecida'
-                        });
-                        score--;
-                    } else if (userCode[i] === line) {
-                        blockFeedback.push({ line, status: 'acertou' });
-                    } else {
-                        blockFeedback.push({
-                            line: userCode[i] || "",
-                            status: 'errou',
-                            certo: line
-                        });
-                        score--;
-                    }
-                });
-
-                feedback.push(blockFeedback);
-            }
-        });
-
-        res.json({ score: Math.max(score, 0), feedback });
+      feedback.push({ line: userLine, status: 'errou', certo: correctLine });
+      score--;
     }
+  });
+
+  res.json({ score: Math.max(score, 0), feedback });
 });
-
-
 
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
